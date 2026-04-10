@@ -319,7 +319,7 @@ function GenerateTab() {
         canvas.height = height;
         const ctx = canvas.getContext('2d')!;
         ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
       };
       img.src = dataUrl;
     });
@@ -331,10 +331,8 @@ function GenerateTab() {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const raw = ev.target?.result as string;
-      const compressed = await compressImage(raw, 1200);
+      const compressed = await compressImage(raw, 800);
       setImage(compressed);
-      setResult(null);
-      setError(null);
     };
     reader.readAsDataURL(file);
   };
@@ -345,19 +343,27 @@ function GenerateTab() {
     setError(null);
     setResult(null);
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 90000);
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image, style, customPrompt }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || '生成失败');
         return;
       }
       setResult({ imageUrl: data.imageUrl, prompt: data.prompt });
-    } catch {
-      setError('网络错误，请重试');
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setError('请求超时，请重试');
+      } else {
+        setError('网络错误，请重试');
+      }
     } finally {
       setGenerating(false);
     }
