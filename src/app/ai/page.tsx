@@ -290,6 +290,9 @@ function RecommendTab() {
 function GenerateTab() {
   const [image, setImage] = useState<string | null>(null);
   const [style, setStyle] = useState('modern');
+  const [room, setRoom] = useState('');
+  const [rooms, setRooms] = useState<string[]>([]);
+  const [detecting, setDetecting] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<{ imageUrl: string; prompt: string } | null>(null);
@@ -333,6 +336,26 @@ function GenerateTab() {
       const raw = ev.target?.result as string;
       const compressed = await compressImage(raw, 800);
       setImage(compressed);
+      setResult(null);
+      setError(null);
+      setRooms([]);
+      setRoom('');
+      // Auto-detect rooms from floor plan
+      setDetecting(true);
+      try {
+        const res = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: compressed }),
+        });
+        const data = await res.json();
+        if (res.ok && data.rooms && Array.isArray(data.rooms)) {
+          const names = data.rooms.map((r: { name: string }) => r.name);
+          setRooms(names);
+          if (names.length > 0) setRoom(names[0]);
+        }
+      } catch { /* ignore */ }
+      setDetecting(false);
     };
     reader.readAsDataURL(file);
   };
@@ -348,7 +371,7 @@ function GenerateTab() {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image, style, customPrompt }),
+        body: JSON.stringify({ image, style, room, customPrompt }),
         signal: controller.signal,
       });
       clearTimeout(timeout);
@@ -373,7 +396,7 @@ function GenerateTab() {
     <div className="bg-gray-800/50 rounded-xl border border-gray-700 p-6">
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-white mb-2">🎨 AI 效果图生成</h3>
-        <p className="text-sm text-gray-400">上传房间照片，选择装修风格，AI帮你生成效果图</p>
+        <p className="text-sm text-gray-400">上传平面图 → AI识别房间 → 选房间+风格 → 生成效果图</p>
         {error && <p className="text-xs text-red-400 mt-1">❌ {error}</p>}
       </div>
 
@@ -393,7 +416,7 @@ function GenerateTab() {
             ) : (
               <label className="cursor-pointer">
                 <p className="text-4xl mb-2">📷</p>
-                <p className="text-sm text-gray-400">上传房间照片</p>
+                <p className="text-sm text-gray-400">上传平面图 / 户型图</p>
                 <p className="text-xs text-gray-500 mt-1">支持 JPG, PNG</p>
                 <input type="file" accept="image/*" onChange={handleUpload} className="hidden" />
               </label>
@@ -417,6 +440,33 @@ function GenerateTab() {
             </div>
           </div>
 
+          {/* Room Selection */}
+          {image && (
+            <div>
+              <p className="text-sm font-medium text-white mb-2">选择房间</p>
+              {detecting ? (
+                <p className="text-xs text-gray-400">✨ AI正在识别房间...</p>
+              ) : rooms.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {rooms.map(r => (
+                    <button key={r} onClick={() => setRoom(r)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+                        room === r
+                          ? 'border-green-500 bg-green-500/20 text-white'
+                          : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-500'
+                      }`}>
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <input type="text" value={room} onChange={e => setRoom(e.target.value)}
+                  placeholder="输入房间名，如 LDK、主卧、洋室1..."
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
+              )}
+            </div>
+          )}
+
           {/* Custom Prompt */}
           <div>
             <p className="text-sm font-medium text-white mb-2">额外要求（可选）</p>
@@ -426,9 +476,9 @@ function GenerateTab() {
           </div>
 
           {/* Generate Button */}
-          <button onClick={generate} disabled={!image || generating}
+          <button onClick={generate} disabled={!image || generating || detecting}
             className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition">
-            {generating ? '✨ AI生成中，请稍等约20-30秒...' : '✨ 生成效果图'}
+            {generating ? `✨ 正在生成${room || ''}效果图，约20-30秒...` : `✨ 生成${room || ''}效果图`}
           </button>
         </div>
 
