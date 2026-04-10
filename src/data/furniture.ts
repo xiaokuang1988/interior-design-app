@@ -1,0 +1,42 @@
+import { FurnitureTemplate, FurnitureCategory } from '@/types';
+
+export const furnitureCategories: { id: FurnitureCategory; name: string; emoji: string }[] = [
+  { id: 'seating', name: '座椅', emoji: '🪑' },
+  { id: 'bed', name: '床铺', emoji: '🛏️' },
+  { id: 'table', name: '桌子', emoji: '🪵' },
+  { id: 'storage', name: '收纳', emoji: '🗄️' },
+  { id: 'appliance', name: '家电', emoji: '📺' },
+  { id: 'bathroom', name: '卫浴', emoji: '🚿' },
+  { id: 'other', name: '其他', emoji: '📦' },
+];
+
+export const furnitureTemplates: FurnitureTemplate[] = [
+  { id: 'sofa-3', name: '三人沙发', nameEn: '3-Seat Sofa', emoji: '🛋️', width: 220, height: 90, color: '#6B7280', category: 'seating' },
+  { id: 'sofa-2', name: '双人沙发', nameEn: '2-Seat Sofa', emoji: '🛋️', width: 160, height: 85, color: '#6B7280', category: 'seating' },
+  { id: 'sofa-1', name: '单人沙发', nameEn: 'Armchair', emoji: '🪑', width: 85, height: 85, color: '#6B7280', category: 'seating' },
+  { id: 'chair-dining', name: '餐椅', nameEn: 'Dining Chair', emoji: '🪑', width: 45, height: 45, color: '#92400E', category: 'seating' },
+  { id: 'chair-office', name: '办公椅', nameEn: 'Office Chair', emoji: '💺', width: 55, height: 55, color: '#1F2937', category: 'seating' },
+  { id: 'bed-king', name: '双人大床', nameEn: 'King Bed', emoji: '🛏️', width: 200, height: 200, color: '#7C3AED', category: 'bed' },
+  { id: 'bed-queen', name: '双人床', nameEn: 'Queen Bed', emoji: '🛏️', width: 160, height: 200, color: '#7C3AED', category: 'bed' },
+  { id: 'bed-single', name: '单人床', nameEn: 'Single Bed', emoji: '🛏️', width: 100, height: 200, color: '#7C3AED', category: 'bed' },
+  { id: 'table-dining-6', name: '六人餐桌', nameEn: '6-Person Table', emoji: '🪵', width: 180, height: 90, color: '#92400E', category: 'table' },
+  { id: 'table-dining-4', name: '四人餐桌', nameEn: '4-Person Table', emoji: '🪵', width: 120, height: 80, color: '#92400E', category: 'table' },
+  { id: 'desk', name: '书桌', nameEn: 'Desk', emoji: '🖥️', width: 140, height: 70, color: '#78716C', category: 'table' },
+  { id: 'coffee-table', name: '茶几', nameEn: 'Coffee Table', emoji: '☕', width: 120, height: 60, color: '#92400E', category: 'table' },
+  { id: 'nightstand', name: '床头柜', nameEn: 'Nightstand', emoji: '🔲', width: 45, height: 40, color: '#78716C', category: 'table' },
+  { id: 'wardrobe', name: '衣柜', nameEn: 'Wardrobe', emoji: '🗄️', width: 180, height: 60, color: '#A3A3A3', category: 'storage' },
+  { id: 'bookshelf', name: '书架', nameEn: 'Bookshelf', emoji: '📚', width: 120, height: 35, color: '#92400E', category: 'storage' },
+  { id: 'cabinet-tv', name: '电视柜', nameEn: 'TV Cabinet', emoji: '📺', width: 180, height: 45, color: '#525252', category: 'storage' },
+  { id: 'shoe-cabinet', name: '鞋柜', nameEn: 'Shoe Cabinet', emoji: '👟', width: 100, height: 35, color: '#78716C', category: 'storage' },
+  { id: 'fridge', name: '冰箱', nameEn: 'Fridge', emoji: '🧊', width: 70, height: 70, color: '#D1D5DB', category: 'appliance' },
+  { id: 'washer', name: '洗衣机', nameEn: 'Washer', emoji: '🫧', width: 60, height: 65, color: '#D1D5DB', category: 'appliance' },
+  { id: 'tv', name: '电视', nameEn: 'TV', emoji: '📺', width: 120, height: 8, color: '#1F2937', category: 'appliance' },
+  { id: 'ac', name: '空调', nameEn: 'AC Unit', emoji: '❄️', width: 90, height: 25, color: '#E5E7EB', category: 'appliance' },
+  { id: 'bathtub', name: '浴缸', nameEn: 'Bathtub', emoji: '🛁', width: 170, height: 80, color: '#E0E7FF', category: 'bathroom' },
+  { id: 'toilet', name: '马桶', nameEn: 'Toilet', emoji: '🚽', width: 40, height: 65, color: '#F3F4F6', category: 'bathroom' },
+  { id: 'sink', name: '洗手台', nameEn: 'Sink', emoji: '🚰', width: 80, height: 50, color: '#E0E7FF', category: 'bathroom' },
+  { id: 'shower', name: '淋浴间', nameEn: 'Shower', emoji: '🚿', width: 90, height: 90, color: '#DBEAFE', category: 'bathroom' },
+  { id: 'plant-large', name: '大盆栽', nameEn: 'Large Plant', emoji: '🌿', width: 50, height: 50, color: '#16A34A', category: 'other' },
+  { id: 'plant-small', name: '小盆栽', nameEn: 'Small Plant', emoji: '🪴', width: 30, height: 30, color: '#22C55E', category: 'other' },
+  { id: 'rug', name: '地毯', nameEn: 'Rug', emoji: '🟫', width: 200, height: 140, color: '#D4A574', category: 'other' },
+];
