@@ -57,11 +57,36 @@ function AnalyzeTab() {
     tips: string[];
   }>(null);
 
+  const compressImage = (dataUrl: string, maxSize: number): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxSize || height > maxSize) {
+          const ratio = Math.min(maxSize / width, maxSize / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.src = dataUrl;
+    });
+  };
+
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => setImage(ev.target?.result as string);
+    reader.onload = async (ev) => {
+      const raw = ev.target?.result as string;
+      const compressed = await compressImage(raw, 1200);
+      setImage(compressed);
+    };
     reader.readAsDataURL(file);
   };
 
@@ -279,12 +304,35 @@ function GenerateTab() {
     { id: 'wabisabi', label: '🍵 侘寂风', color: '#C4B698' },
   ];
 
+  const compressImage = (dataUrl: string, maxSize: number): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxSize || height > maxSize) {
+          const ratio = Math.min(maxSize / width, maxSize / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.src = dataUrl;
+    });
+  };
+
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      setImage(ev.target?.result as string);
+    reader.onload = async (ev) => {
+      const raw = ev.target?.result as string;
+      const compressed = await compressImage(raw, 1200);
+      setImage(compressed);
       setResult(null);
       setError(null);
     };
