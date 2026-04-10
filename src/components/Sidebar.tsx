@@ -9,6 +9,7 @@ const navItems = [
   { href: '/rooms', label: '房间规划', emoji: '📐' },
   { href: '/materials', label: '选材配色', emoji: '🎨' },
   { href: '/ai', label: 'AI 助手', emoji: '🤖' },
+  { href: '/vr', label: 'VR 全景', emoji: '🌐' },
   { href: '/budget', label: '预算管理', emoji: '💰' },
 ];
 
