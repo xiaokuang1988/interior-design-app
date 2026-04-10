@@ -20,6 +20,11 @@ export default function PanoramaViewer({ imageUrl, hotspots }: PanoramaViewerPro
   const [loaded, setLoaded] = useState(false);
   const [activeHotspot, setActiveHotspot] = useState<Hotspot | null>(null);
 
+  // Proxy external images to avoid CORS issues
+  const proxiedUrl = imageUrl.startsWith('http') && !imageUrl.startsWith(window.location.origin)
+    ? `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`
+    : imageUrl;
+
   useEffect(() => {
     if (!viewerRef.current || !imageUrl) return;
 
@@ -67,7 +72,7 @@ export default function PanoramaViewer({ imageUrl, hotspots }: PanoramaViewerPro
 
       pannellum.viewer(viewerRef.current, {
         type: 'equirectangular',
-        panorama: imageUrl,
+        panorama: proxiedUrl,
         autoLoad: true,
         compass: true,
         showControls: true,
