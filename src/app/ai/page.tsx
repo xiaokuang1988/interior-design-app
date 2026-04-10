@@ -448,6 +448,14 @@ function GenerateTab() {
                 <p className="text-xs text-gray-400">✨ AI正在识别房间...</p>
               ) : rooms.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setRoom('__overview__')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+                      room === '__overview__'
+                        ? 'border-yellow-500 bg-yellow-500/20 text-white'
+                        : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-500'
+                    }`}>
+                    🏠 全屋整体
+                  </button>
                   {rooms.map(r => (
                     <button key={r} onClick={() => setRoom(r)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
