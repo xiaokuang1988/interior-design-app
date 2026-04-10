@@ -68,6 +68,8 @@ CRITICAL: The generated room MUST match the floor plan's proportions. If the roo
 Write a detailed English description for generating a photorealistic interior photo of THAT SPECIFIC ROOM as seen from standing at the doorway looking in.
 Include: exact room shape and proportions from the plan, window placement on the correct wall, furniture appropriate for the actual room dimensions, the specified design style, realistic lighting from windows, flooring, wall treatment.
 
+IMPORTANT: Do NOT mention people or living beings. Do NOT use the word "bedroom" - use "private room" or the room label instead. Focus purely on furniture, materials, colors, and architectural elements.
+
 The description must be one coherent English paragraph. Do NOT include Chinese text.
 Make it photorealistic, like a professional interior design magazine photograph.`;
     } else {

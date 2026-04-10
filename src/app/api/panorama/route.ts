@@ -26,32 +26,30 @@ export async function POST(req: NextRequest) {
     const styleEn = styleDescriptions[style] || styleDescriptions.modern;
 
     // Generate equirectangular panorama prompt
-    const systemPrompt = `You are a professional interior designer and 3D visualization expert.
-The user uploaded a floor plan. They want a 360° equirectangular panoramic rendering of the "${room || 'LDK'}" room.
+    const roomLabel = room || 'LDK';
+    const systemPrompt = `You are a professional interior designer creating architectural visualizations.
+The user uploaded a floor plan. Generate a description for a 360-degree equirectangular panoramic architectural visualization of the "${roomLabel}" space.
 
-Analyze the floor plan carefully:
-- Find the room "${room || 'LDK'}" and read its dimensions
-- Note window positions, door positions, wall layout
-- Note what's on each wall (north/south/east/west relative to the plan)
+Analyze the floor plan:
+- Find "${roomLabel}" and note its dimensions
+- Note window positions, doors, wall layout
 
-Write a DETAILED English description for generating a 360° equirectangular panoramic interior photograph.
-The description MUST specify what is visible in ALL directions from the center of the room:
-- FRONT: what furniture/features face you
-- BEHIND: what's behind the viewer
-- LEFT WALL: windows? door? furniture?
-- RIGHT WALL: features on this side
-- CEILING: light fixtures, height
-- FLOOR: material, rugs
+Write a DETAILED English description for an architectural interior panorama.
+Describe what is visible in ALL directions from the center of the space:
+- Each wall: furniture, windows, doors, built-in features
+- Ceiling: lighting fixtures
+- Floor: material
 
-CRITICAL requirements for the prompt:
-1. Specify "360 degree equirectangular panoramic photograph" at the start
-2. Room proportions must match the floor plan
-3. Describe ALL four walls and what's on them
-4. Include the design style specified
-5. Must be photorealistic, professional interior photography quality
-6. The image should be seamless when wrapped as a sphere
+IMPORTANT RULES:
+1. Start with: "360 degree equirectangular panoramic architectural interior visualization"
+2. Keep the description professional and architectural - focus on furniture, materials, colors, lighting
+3. Do NOT mention people, figures, or any living beings
+4. Do NOT use words like "bedroom" - use "private room" or "sleeping area" or just the room name instead
+5. Focus purely on interior design elements: furniture, decor, materials, textures, lighting
+6. Room proportions must reflect the floor plan
+7. Style: professional architectural visualization, magazine quality
 
-Output ONLY the English prompt paragraph, nothing else.`;
+Output ONLY the English description paragraph, nothing else.`;
 
     const analyzeResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
