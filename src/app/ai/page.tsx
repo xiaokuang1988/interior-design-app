@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import AIChat from '@/components/AIChat';
 
-type AITab = 'chat' | 'analyze' | 'recommend';
+type AITab = 'chat' | 'generate' | 'analyze' | 'recommend';
 
 export default function AIPage() {
   const [activeTab, setActiveTab] = useState<AITab>('chat');
@@ -16,8 +16,9 @@ export default function AIPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 flex-wrap">
         {([
+          { id: 'generate' as AITab, label: '🎨 效果图生成', desc: '上传照片出图' },
           { id: 'chat' as AITab, label: '💬 对话助手', desc: '装修问答' },
           { id: 'analyze' as AITab, label: '📸 户型分析', desc: '上传户型图' },
           { id: 'recommend' as AITab, label: '🎯 风格推荐', desc: '偏好测试' },
@@ -33,6 +34,8 @@ export default function AIPage() {
       </div>
 
       {/* Tab Content */}
+      {activeTab === 'generate' && <GenerateTab />}
+
       {activeTab === 'chat' && (
         <div className="bg-gray-800/50 rounded-xl border border-gray-700">
           <AIChat />
@@ -255,6 +258,158 @@ function RecommendTab() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function GenerateTab() {
+  const [image, setImage] = useState<string | null>(null);
+  const [style, setStyle] = useState('modern');
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [result, setResult] = useState<{ imageUrl: string; prompt: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const styles = [
+    { id: 'japanese', label: '🇯🇵 日式和风', color: '#8B7355' },
+    { id: 'nordic', label: '🇸🇪 北欧风格', color: '#87CEEB' },
+    { id: 'modern', label: '🏢 现代简约', color: '#6B7280' },
+    { id: 'chinese', label: '🇨🇳 新中式', color: '#8B0000' },
+    { id: 'industrial', label: '🏭 工业风', color: '#A0522D' },
+    { id: 'wabisabi', label: '🍵 侘寂风', color: '#C4B698' },
+  ];
+
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setImage(ev.target?.result as string);
+      setResult(null);
+      setError(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const generate = async () => {
+    if (!image) return;
+    setGenerating(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image, style, customPrompt }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || '生成失败');
+        return;
+      }
+      setResult({ imageUrl: data.imageUrl, prompt: data.prompt });
+    } catch {
+      setError('网络错误，请重试');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div className="bg-gray-800/50 rounded-xl border border-gray-700 p-6">
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold text-white mb-2">🎨 AI 效果图生成</h3>
+        <p className="text-sm text-gray-400">上传房间照片，选择装修风格，AI帮你生成效果图</p>
+        {error && <p className="text-xs text-red-400 mt-1">❌ {error}</p>}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left: Upload + Controls */}
+        <div className="space-y-4">
+          {/* Upload Area */}
+          <div className={`border-2 border-dashed rounded-xl p-6 text-center transition ${
+            image ? 'border-blue-500/50' : 'border-gray-600 hover:border-gray-500'
+          }`}>
+            {image ? (
+              <div>
+                <img src={image} alt="原图" className="max-h-48 mx-auto rounded-lg mb-3" />
+                <button onClick={() => { setImage(null); setResult(null); }}
+                  className="text-xs text-gray-400 hover:text-white transition">重新选择照片</button>
+              </div>
+            ) : (
+              <label className="cursor-pointer">
+                <p className="text-4xl mb-2">📷</p>
+                <p className="text-sm text-gray-400">上传房间照片</p>
+                <p className="text-xs text-gray-500 mt-1">支持 JPG, PNG</p>
+                <input type="file" accept="image/*" onChange={handleUpload} className="hidden" />
+              </label>
+            )}
+          </div>
+
+          {/* Style Selection */}
+          <div>
+            <p className="text-sm font-medium text-white mb-2">选择装修风格</p>
+            <div className="grid grid-cols-3 gap-2">
+              {styles.map(s => (
+                <button key={s.id} onClick={() => setStyle(s.id)}
+                  className={`p-2 rounded-lg text-xs font-medium transition border ${
+                    style === s.id
+                      ? 'border-blue-500 bg-blue-500/20 text-white'
+                      : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-500'
+                  }`}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom Prompt */}
+          <div>
+            <p className="text-sm font-medium text-white mb-2">额外要求（可选）</p>
+            <input type="text" value={customPrompt} onChange={e => setCustomPrompt(e.target.value)}
+              placeholder="例如：添加绿植、木质地板、暖色灯光..."
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
+          </div>
+
+          {/* Generate Button */}
+          <button onClick={generate} disabled={!image || generating}
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition">
+            {generating ? '✨ AI生成中，请稍等约20-30秒...' : '✨ 生成效果图'}
+          </button>
+        </div>
+
+        {/* Right: Result */}
+        <div className="flex items-center justify-center">
+          {result ? (
+            <div className="space-y-3 w-full">
+              <p className="text-sm font-medium text-green-400">✅ 效果图生成成功！</p>
+              <img src={result.imageUrl} alt="效果图" className="w-full rounded-xl border border-gray-600" />
+              <div className="flex gap-2">
+                <a href={result.imageUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex-1 text-center py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition">
+                  💾 查看大图
+                </a>
+                <button onClick={generate} disabled={generating}
+                  className="flex-1 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium transition">
+                  🔄 重新生成
+                </button>
+              </div>
+            </div>
+          ) : generating ? (
+            <div className="text-center py-12">
+              <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
+              <p className="text-sm text-gray-400">AI正在分析您的房间并生成效果图...</p>
+              <p className="text-xs text-gray-500 mt-1">大约需要20-30秒</p>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-4xl mb-3">🖼️</p>
+              <p className="text-sm">效果图将在这里显示</p>
+              <p className="text-xs mt-1">先上传照片并选择风格</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
