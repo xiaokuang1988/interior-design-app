@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
-export const maxDuration = 120; // ControlNet can take longer
+export const maxDuration = 120;
 
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
 
-// Upload base64 image to Replicate and return a serving URL
+// The correct version hash for adirik/interior-design
+const MODEL_VERSION = '76604baddc85b1b4616e1c6475eca080da339c8875bd4996705440484a6eac38';
+
+// Upload base64 image to Replicate file API and return a URL
 async function uploadImageToReplicate(base64Data: string): Promise<string> {
   const match = base64Data.match(/^data:(image\/\w+);base64,(.+)$/);
   if (!match) throw new Error('Invalid base64 image format');
@@ -14,30 +17,17 @@ async function uploadImageToReplicate(base64Data: string): Promise<string> {
   const buffer = Buffer.from(rawBase64, 'base64');
   const ext = mimeType === 'image/png' ? 'png' : 'jpg';
 
-  // Use Replicate's upload endpoint with multipart/form-data
-  const boundary = '----ReplicateUpload' + Date.now();
-  const filename = `upload.${ext}`;
-  
-  const preamble = [
-    `--${boundary}`,
-    `Content-Disposition: form-data; name="content"; filename="${filename}"`,
-    `Content-Type: ${mimeType}`,
-    '',
-    '',
-  ].join('\r\n');
-  const epilogue = `\r\n--${boundary}--\r\n`;
-
-  const preambleBuf = Buffer.from(preamble, 'utf-8');
-  const epilogueBuf = Buffer.from(epilogue, 'utf-8');
-  const body = Buffer.concat([preambleBuf, buffer, epilogueBuf]);
+  // Build FormData with the file
+  const blob = new Blob([buffer], { type: mimeType });
+  const formData = new FormData();
+  formData.append('content', blob, `upload.${ext}`);
 
   const uploadRes = await fetch('https://api.replicate.com/v1/files', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${REPLICATE_API_TOKEN}`,
-      'Content-Type': `multipart/form-data; boundary=${boundary}`,
     },
-    body,
+    body: formData,
   });
 
   if (!uploadRes.ok) {
@@ -66,7 +56,7 @@ const stylePrompts: Record<string, string> = {
 };
 
 async function waitForPrediction(predictionId: string): Promise<{ output: string[] | string; error?: string }> {
-  const maxAttempts = 60; // 60 * 2s = 120s max
+  const maxAttempts = 60;
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise((r) => setTimeout(r, 2000));
     const res = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
@@ -82,7 +72,6 @@ async function waitForPrediction(predictionId: string): Promise<{ output: string
     if (data.status === 'failed' || data.status === 'canceled') {
       return { output: [], error: data.error || 'Generation failed' };
     }
-    // still processing, continue polling
   }
   return { output: [], error: 'Timeout waiting for generation' };
 }
@@ -102,7 +91,7 @@ export async function POST(req: NextRequest) {
 
     const baseStylePrompt = stylePrompts[style] || stylePrompts.modern;
 
-    // Step 1: Use GPT-4o to analyze the floor plan and generate a detailed room description
+    // Step 1: Use GPT-4o to analyze the floor plan
     let detailedPrompt = baseStylePrompt;
 
     if (openaiKey) {
@@ -159,7 +148,7 @@ Start directly with the room description, no preamble.`,
       detailedPrompt += `. ${customPrompt}`;
     }
 
-    // Step 2: Upload image to Replicate (it doesn't accept base64 directly)
+    // Step 2: Upload image to Replicate
     let imageUrl: string;
     try {
       imageUrl = await uploadImageToReplicate(image);
@@ -169,7 +158,7 @@ Start directly with the room description, no preamble.`,
       return NextResponse.json({ error: `图片上传失败: ${msg}` }, { status: 502 });
     }
 
-    // Step 3: Send to Replicate ControlNet interior design model
+    // Step 3: Create prediction with ControlNet interior design model
     const replicateResponse = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
@@ -177,14 +166,14 @@ Start directly with the room description, no preamble.`,
         Authorization: `Bearer ${REPLICATE_API_TOKEN}`,
       },
       body: JSON.stringify({
-        version: '76604baddc85b1b4616e1c6475eca080da339c8875bd4996705440484a6ebd65',
+        version: MODEL_VERSION,
         input: {
           image: imageUrl,
           prompt: detailedPrompt,
           negative_prompt:
             'lowres, watermark, banner, logo, contactinfo, text, deformed, blurry, blur, out of focus, out of frame, surreal, ugly, beginner, amateur, distorted, draft, cartoon, anime, illustration, painting, drawing, people, person, human, face, hands',
-          num_inference_steps: 30,
-          guidance_scale: 9,
+          num_inference_steps: 50,
+          guidance_scale: 15,
           prompt_strength: 0.65,
           seed: 0,
         },
