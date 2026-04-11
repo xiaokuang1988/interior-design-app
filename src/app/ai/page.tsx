@@ -303,7 +303,7 @@ function GenerateTab() {
     { id: 'japanese', label: '🇯🇵 日式和风', color: '#8B7355' },
     { id: 'nordic', label: '🇸🇪 北欧风格', color: '#87CEEB' },
     { id: 'modern', label: '🏢 现代简约', color: '#6B7280' },
-    { id: 'chinese', label: '🇨🇳 新中式', color: '#8B0000' },
+    { id: 'chinese', label: '🇨🇳 亚洲禅风', color: '#8B0000' },
     { id: 'industrial', label: '🏭 工业风', color: '#A0522D' },
     { id: 'wabisabi', label: '🍵 侘寂风', color: '#C4B698' },
   ];
@@ -426,7 +426,7 @@ function GenerateTab() {
         </div>
         {proMode && (
           <div className="mt-2 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-            <p className="text-xs text-purple-300">🏆 专业模式：GPT-4o 深度分析平面图 + FLUX 1.1 Pro 高品质渲染，生成带家具的室内透视效果图</p>
+            <p className="text-xs text-purple-300">🏆 专业模式：Decor8 AI 专业渲染引擎，平面图/草图直接转3D效果图，保留空间结构</p>
           </div>
         )}
         {error && <p className="text-xs text-red-400 mt-1">❌ {error}</p>}
