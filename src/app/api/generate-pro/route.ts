@@ -5,54 +5,20 @@ export const maxDuration = 120;
 
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
 
-// The correct version hash for adirik/interior-design
-const MODEL_VERSION = '76604baddc85b1b4616e1c6475eca080da339c8875bd4996705440484a6eac38';
-
-// Upload base64 image to Replicate file API and return a URL
-async function uploadImageToReplicate(base64Data: string): Promise<string> {
-  const match = base64Data.match(/^data:(image\/\w+);base64,(.+)$/);
-  if (!match) throw new Error('Invalid base64 image format');
-  const mimeType = match[1];
-  const rawBase64 = match[2];
-  const buffer = Buffer.from(rawBase64, 'base64');
-  const ext = mimeType === 'image/png' ? 'png' : 'jpg';
-
-  // Build FormData with the file
-  const blob = new Blob([buffer], { type: mimeType });
-  const formData = new FormData();
-  formData.append('content', blob, `upload.${ext}`);
-
-  const uploadRes = await fetch('https://api.replicate.com/v1/files', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${REPLICATE_API_TOKEN}`,
-    },
-    body: formData,
-  });
-
-  if (!uploadRes.ok) {
-    const err = await uploadRes.text();
-    throw new Error(`File upload failed (${uploadRes.status}): ${err}`);
-  }
-
-  const uploadData = await uploadRes.json();
-  return uploadData.urls?.get || uploadData.url;
-}
-
-// Style prompts optimized for ControlNet interior design
+// Style prompts - detailed for realistic interior rendering
 const stylePrompts: Record<string, string> = {
   japanese:
-    'Japanese Zen interior design, tatami mats, shoji screens, natural wood furniture, wabi-sabi aesthetics, warm ambient lighting, tokonoma alcove, minimalist, neutral earthy tones, professional interior photography',
+    'Japanese Zen interior design style: tatami mats, shoji paper sliding screens, low wooden furniture, futon or low platform bed, tokonoma alcove, natural wood beams, wabi-sabi ceramics, bonsai plants, warm indirect lighting, neutral earthy palette of beige/cream/brown',
   nordic:
-    'Scandinavian Nordic interior design, bright and airy, white walls, light oak furniture, clean lines, indoor plants, large windows with natural light, hygge atmosphere, wool textiles, professional interior photography',
+    'Scandinavian Nordic interior design style: bright white walls, light oak hardwood floor, minimalist light-colored furniture, large windows with sheer curtains, indoor green plants, wool throw blankets, clean geometric lines, pastel accent colors, pendant lights, cozy hygge atmosphere',
   modern:
-    'Modern minimalist interior design, clean lines, neutral palette, gray white black, metal and glass accents, hidden storage, LED strip lighting, sleek furniture, professional interior photography',
+    'Modern minimalist interior design style: clean straight lines, neutral palette of white/gray/black, sleek low-profile furniture, hidden built-in storage, LED strip ambient lighting, glass and metal accents, polished concrete or marble surfaces, abstract wall art, open spacious feel',
   chinese:
-    'Modern Chinese interior design, rosewood furniture accents, ink painting decorations, screen dividers, lantern-inspired lighting, dark wood flooring, silk cushions, professional interior photography',
+    'Modern New Chinese interior design style: dark rosewood furniture with Ming dynasty inspired lines, ink wash painting wall art, lattice screen room dividers, red and gold accent pillows, paper lantern pendant lights, bamboo decorations, dark wood flooring, silk cushions, calligraphy scrolls',
   industrial:
-    'Industrial loft interior design, exposed brick walls, metal pipes, concrete flooring, vintage Edison bulbs, leather sofa, raw textures, open ceiling, professional interior photography',
+    'Industrial loft interior design style: exposed red brick walls, visible metal ductwork and pipes on ceiling, polished concrete flooring, vintage Edison filament bulbs, worn leather Chesterfield sofa, reclaimed wood coffee table, metal frame shelving, large factory-style windows, raw urban aesthetic',
   wabisabi:
-    'Wabi-sabi interior design, beauty of imperfection, natural handmade materials, earthy muted tones, handmade ceramics, organic textures, raw plaster walls, aged wood, professional interior photography',
+    'Wabi-sabi interior design style: beauty of imperfection, raw plaster textured walls in cream/beige, handmade irregular ceramic vases, weathered aged wood furniture, linen and cotton natural fabrics, dried flower arrangements, soft diffused natural light, organic asymmetric shapes, muted earth tones',
 };
 
 async function waitForPrediction(predictionId: string): Promise<{ output: string[] | string; error?: string }> {
@@ -82,6 +48,9 @@ export async function POST(req: NextRequest) {
   }
 
   const openaiKey = process.env.OPENAI_API_KEY;
+  if (!openaiKey) {
+    return NextResponse.json({ error: 'OPENAI_API_KEY not configured' }, { status: 500 });
+  }
 
   try {
     const { image, style, room, customPrompt } = await req.json();
@@ -90,75 +59,98 @@ export async function POST(req: NextRequest) {
     }
 
     const baseStylePrompt = stylePrompts[style] || stylePrompts.modern;
+    const roomLabel = room === '__overview__' ? 'the entire apartment (bird-eye 3D cutaway view)' : room || 'the main living area (LDK)';
+    const isOverview = room === '__overview__';
 
-    // Step 1: Use GPT-4o to analyze the floor plan
-    let detailedPrompt = baseStylePrompt;
+    // Step 1: GPT-4o deeply analyzes the floor plan
+    const systemPrompt = isOverview
+      ? `You are an expert architectural visualization prompt engineer. The user uploaded a Japanese floor plan (間取り図).
+Your task: write a DETAILED image generation prompt for a 3D isometric bird's-eye cutaway view of the ENTIRE apartment.
 
-    if (openaiKey) {
-      const roomLabel = room === '__overview__' ? 'the entire apartment' : room || 'the main living area (LDK)';
-      const analyzeResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${openaiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            {
-              role: 'system',
-              content: `You are a professional interior designer. Analyze this floor plan image and write a concise interior design prompt for "${roomLabel}".
+Analyze the floor plan meticulously:
+1. Read ALL room labels (LDK, 洋室1, 洋室2, etc.) and their exact dimensions in 畳 or m²
+2. Map the EXACT layout: which rooms are adjacent, wall positions, corridor layout
+3. Note ALL windows (usually marked on exterior walls) and balcony positions
+4. Note bathroom, toilet, kitchen, 洗面室 positions
+5. Note the entrance (玄関) position
 
-Focus on:
-- Room dimensions and proportions from the plan
-- Window positions and natural light direction
-- Door positions
-- The specific style requested
+Write a prompt that will generate a BEAUTIFUL 3D isometric cutaway rendering showing:
+- The apartment from above at 30-degree angle, walls cut at half height to reveal interiors
+- EVERY room fully furnished with appropriate furniture for its function
+- Furniture must match the specified style
+- Room proportions MUST accurately reflect the floor plan
+- Warm, inviting lighting throughout
+- High-end architectural visualization quality
 
-Write ONE paragraph in English, maximum 100 words. This will be used as an image generation prompt.
-Do NOT mention people. Focus on furniture, materials, colors, lighting, and spatial layout.
-Start directly with the room description, no preamble.`,
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: `Style: ${baseStylePrompt}. ${customPrompt ? `Additional: ${customPrompt}` : ''} Describe the interior for ${roomLabel}.`,
-                },
-                { type: 'image_url', image_url: { url: image, detail: 'high' } },
-              ],
-            },
-          ],
-          max_tokens: 300,
-          temperature: 0.5,
-        }),
-      });
+Output ONLY the prompt text, no explanation. Maximum 200 words. English only.`
+      : `You are an expert architectural visualization prompt engineer. The user uploaded a Japanese floor plan (間取り図).
+Your task: write a DETAILED image generation prompt for a photorealistic INTERIOR PERSPECTIVE VIEW of the "${room || 'LDK'}" room.
 
-      if (analyzeResponse.ok) {
-        const analyzeData = await analyzeResponse.json();
-        const aiPrompt = analyzeData.choices?.[0]?.message?.content;
-        if (aiPrompt) {
-          detailedPrompt = `${aiPrompt}. ${baseStylePrompt}`;
-        }
-      }
+Analyze the floor plan meticulously:
+1. Find the "${room || 'LDK'}" room and read its exact dimensions
+2. Determine the room's SHAPE (rectangular? square? L-shaped?) and PROPORTIONS (aspect ratio)
+3. Identify which wall has windows and which direction they face
+4. Note the door position (this is where the camera viewpoint will be)
+5. Check if it connects to a balcony
+6. Note ceiling height (assume 2.4m standard Japanese)
+
+Write a prompt that will generate a PHOTOREALISTIC interior photograph showing:
+- Camera positioned at the doorway, looking INTO the room (eye level ~1.5m)
+- CORRECT room proportions matching the floor plan (if room is 6畳/~10m², it should look compact, not huge)
+- Windows on the CORRECT wall as shown in the floor plan
+- FULLY FURNISHED with appropriate furniture:
+  * LDK: sofa, dining table with chairs, TV unit, kitchen counter/cabinets, pendant lights
+  * 洋室/bedroom: bed with bedding, nightstand, wardrobe/closet, desk area if space allows
+  * Other rooms: appropriate furniture for function
+- All furniture must match the specified design style
+- Natural light streaming through windows, warm interior lighting
+- Realistic materials: wood grain, fabric textures, wall paint/wallpaper
+- Professional interior photography quality, wide-angle lens (24mm equivalent)
+
+Output ONLY the prompt text, no explanation. Maximum 200 words. English only.
+CRITICAL: The room must look LIVED-IN and FURNISHED. Empty rooms are NOT acceptable.`;
+
+    const analyzeResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${openaiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Design style: ${baseStylePrompt}. ${customPrompt ? `Additional requirements: ${customPrompt}` : ''}\n\nAnalyze this floor plan and write the image generation prompt for ${roomLabel}.`,
+              },
+              { type: 'image_url', image_url: { url: image, detail: 'high' } },
+            ],
+          },
+        ],
+        max_tokens: 500,
+        temperature: 0.4,
+      }),
+    });
+
+    if (!analyzeResponse.ok) {
+      const err = await analyzeResponse.text();
+      console.error('GPT-4o error:', err);
+      return NextResponse.json({ error: `平面图分析失败: ${analyzeResponse.status}` }, { status: 502 });
     }
 
-    if (customPrompt) {
-      detailedPrompt += `. ${customPrompt}`;
+    const analyzeData = await analyzeResponse.json();
+    const imagePrompt = analyzeData.choices?.[0]?.message?.content ?? '';
+
+    if (!imagePrompt) {
+      return NextResponse.json({ error: '无法生成描述' }, { status: 500 });
     }
 
-    // Step 2: Upload image to Replicate
-    let imageUrl: string;
-    try {
-      imageUrl = await uploadImageToReplicate(image);
-    } catch (uploadErr: unknown) {
-      const msg = uploadErr instanceof Error ? uploadErr.message : 'Upload failed';
-      console.error('Image upload error:', msg);
-      return NextResponse.json({ error: `图片上传失败: ${msg}` }, { status: 502 });
-    }
-
-    // Step 3: Create prediction with ControlNet interior design model
+    // Step 2: Use Replicate FLUX or SDXL for high-quality generation
+    // Using black-forest-labs/flux-1.1-pro for best quality
     const replicateResponse = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
@@ -166,16 +158,13 @@ Start directly with the room description, no preamble.`,
         Authorization: `Bearer ${REPLICATE_API_TOKEN}`,
       },
       body: JSON.stringify({
-        version: MODEL_VERSION,
+        model: 'black-forest-labs/flux-1.1-pro',
         input: {
-          image: imageUrl,
-          prompt: detailedPrompt,
-          negative_prompt:
-            'lowres, watermark, banner, logo, contactinfo, text, deformed, blurry, blur, out of focus, out of frame, surreal, ugly, beginner, amateur, distorted, draft, cartoon, anime, illustration, painting, drawing, people, person, human, face, hands',
-          num_inference_steps: 50,
-          guidance_scale: 15,
-          prompt_strength: 0.65,
-          seed: 0,
+          prompt: imagePrompt,
+          aspect_ratio: isOverview ? '1:1' : '16:9',
+          output_format: 'png',
+          safety_tolerance: 5,
+          prompt_upsampling: true,
         },
       }),
     });
@@ -184,14 +173,14 @@ Start directly with the room description, no preamble.`,
       const err = await replicateResponse.text();
       console.error('Replicate create error:', err);
       return NextResponse.json(
-        { error: `Replicate API error: ${replicateResponse.status}` },
+        { error: `Replicate API error (${replicateResponse.status}): ${err}` },
         { status: 502 }
       );
     }
 
     const prediction = await replicateResponse.json();
 
-    // Step 4: Poll for result
+    // Step 3: Poll for result
     const result = await waitForPrediction(prediction.id);
 
     if (result.error) {
@@ -206,8 +195,8 @@ Start directly with the room description, no preamble.`,
 
     return NextResponse.json({
       imageUrl: outputUrl,
-      prompt: detailedPrompt,
-      engine: 'replicate-controlnet',
+      prompt: imagePrompt,
+      engine: 'replicate-flux-pro',
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
