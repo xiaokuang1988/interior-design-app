@@ -86,9 +86,15 @@ Output ONLY the prompt text, no explanation. Maximum 200 words. English only.`
       : `You are an expert architectural visualization prompt engineer. The user uploaded a Japanese floor plan (間取り図).
 Your task: write a DETAILED image generation prompt for a photorealistic INTERIOR PERSPECTIVE VIEW of the "${room || 'LDK'}" room.
 
+CRITICAL ROOM IDENTIFICATION:
+- "LDK" = Living + Dining + Kitchen combined space. It MUST show a sofa/living area, dining table with chairs, AND a kitchen counter/cabinets. It is NOT a bedroom. There is NO bed in an LDK.
+- "洋室" or "洋室(1)/(2)/(3)" = Western-style bedroom. Show a bed, nightstand, wardrobe.
+- "和室" = Japanese-style room with tatami. Show tatami mats, low table, zabuton cushions.
+- "玄関" = Entrance hallway. Show shoe cabinet, mirror, umbrella stand.
+
 Analyze the floor plan meticulously:
 1. Find the "${room || 'LDK'}" room and read its exact dimensions
-2. Determine the room's SHAPE (rectangular? square? L-shaped?) and PROPORTIONS (aspect ratio)
+2. Determine the room's SHAPE (rectangular? square? L-shaped?) and PROPORTIONS
 3. Identify which wall has windows and which direction they face
 4. Note the door position (this is where the camera viewpoint will be)
 5. Check if it connects to a balcony
@@ -96,19 +102,19 @@ Analyze the floor plan meticulously:
 
 Write a prompt that will generate a PHOTOREALISTIC interior photograph showing:
 - Camera positioned at the doorway, looking INTO the room (eye level ~1.5m)
-- CORRECT room proportions matching the floor plan (if room is 6畳/~10m², it should look compact, not huge)
+- CORRECT room proportions matching the floor plan
 - Windows on the CORRECT wall as shown in the floor plan
-- FULLY FURNISHED with appropriate furniture:
-  * LDK: sofa, dining table with chairs, TV unit, kitchen counter/cabinets, pendant lights
-  * 洋室/bedroom: bed with bedding, nightstand, wardrobe/closet, desk area if space allows
-  * Other rooms: appropriate furniture for function
+- FULLY FURNISHED with the correct furniture for "${room || 'LDK'}":
+  * If LDK: MUST include sofa, coffee table, TV unit, dining table with 4 chairs, kitchen counter with cabinets, pendant lights. NO BED.
+  * If 洋室/bedroom: bed with bedding, nightstand, wardrobe/closet, small desk if space allows
+  * If 和室: tatami floor, low chabudai table, zabuton, tokonoma alcove
 - All furniture must match the specified design style
 - Natural light streaming through windows, warm interior lighting
-- Realistic materials: wood grain, fabric textures, wall paint/wallpaper
+- Realistic materials: wood grain, fabric textures, wall paint
 - Professional interior photography quality, wide-angle lens (24mm equivalent)
 
 Output ONLY the prompt text, no explanation. Maximum 200 words. English only.
-CRITICAL: The room must look LIVED-IN and FURNISHED. Empty rooms are NOT acceptable.`;
+CRITICAL: Match the furniture to the ROOM TYPE. LDK = living/dining/kitchen, NOT bedroom.`;
 
     const analyzeResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

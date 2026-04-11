@@ -426,7 +426,7 @@ function GenerateTab() {
         </div>
         {proMode && (
           <div className="mt-2 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-            <p className="text-xs text-purple-300">🏆 专业模式：使用 ControlNet 技术，严格保留原图空间结构和房间布局，效果图与平面图高度一致</p>
+            <p className="text-xs text-purple-300">🏆 专业模式：GPT-4o 深度分析平面图 + FLUX 1.1 Pro 高品质渲染，生成带家具的室内透视效果图</p>
           </div>
         )}
         {error && <p className="text-xs text-red-400 mt-1">❌ {error}</p>}
