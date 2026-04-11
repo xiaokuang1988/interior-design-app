@@ -5,31 +5,44 @@ export const maxDuration = 120; // ControlNet can take longer
 
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
 
-// Upload base64 image to Replicate's file upload endpoint and return a URL
+// Upload base64 image to Replicate and return a serving URL
 async function uploadImageToReplicate(base64Data: string): Promise<string> {
-  // Extract the raw base64 and mime type
   const match = base64Data.match(/^data:(image\/\w+);base64,(.+)$/);
   if (!match) throw new Error('Invalid base64 image format');
   const mimeType = match[1];
   const rawBase64 = match[2];
   const buffer = Buffer.from(rawBase64, 'base64');
-
   const ext = mimeType === 'image/png' ? 'png' : 'jpg';
 
-  // Use Replicate's file upload API
+  // Use Replicate's upload endpoint with multipart/form-data
+  const boundary = '----ReplicateUpload' + Date.now();
+  const filename = `upload.${ext}`;
+  
+  const preamble = [
+    `--${boundary}`,
+    `Content-Disposition: form-data; name="content"; filename="${filename}"`,
+    `Content-Type: ${mimeType}`,
+    '',
+    '',
+  ].join('\r\n');
+  const epilogue = `\r\n--${boundary}--\r\n`;
+
+  const preambleBuf = Buffer.from(preamble, 'utf-8');
+  const epilogueBuf = Buffer.from(epilogue, 'utf-8');
+  const body = Buffer.concat([preambleBuf, buffer, epilogueBuf]);
+
   const uploadRes = await fetch('https://api.replicate.com/v1/files', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${REPLICATE_API_TOKEN}`,
-      'Content-Type': mimeType,
-      'Content-Disposition': `attachment; filename="upload.${ext}"`,
+      'Content-Type': `multipart/form-data; boundary=${boundary}`,
     },
-    body: buffer,
+    body,
   });
 
   if (!uploadRes.ok) {
     const err = await uploadRes.text();
-    throw new Error(`Replicate file upload failed (${uploadRes.status}): ${err}`);
+    throw new Error(`File upload failed (${uploadRes.status}): ${err}`);
   }
 
   const uploadData = await uploadRes.json();
