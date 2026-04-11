@@ -149,16 +149,15 @@ CRITICAL: The room must look LIVED-IN and FURNISHED. Empty rooms are NOT accepta
       return NextResponse.json({ error: '无法生成描述' }, { status: 500 });
     }
 
-    // Step 2: Use Replicate FLUX or SDXL for high-quality generation
-    // Using black-forest-labs/flux-1.1-pro for best quality
-    const replicateResponse = await fetch('https://api.replicate.com/v1/predictions', {
+    // Step 2: Use FLUX 1.1 Pro for high-quality generation
+    // FLUX uses model-specific endpoint, not /v1/predictions
+    const replicateResponse = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${REPLICATE_API_TOKEN}`,
       },
       body: JSON.stringify({
-        model: 'black-forest-labs/flux-1.1-pro',
         input: {
           prompt: imagePrompt,
           aspect_ratio: isOverview ? '1:1' : '16:9',
