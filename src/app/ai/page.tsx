@@ -295,8 +295,9 @@ function GenerateTab() {
   const [detecting, setDetecting] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
-  const [result, setResult] = useState<{ imageUrl: string; prompt: string } | null>(null);
+  const [result, setResult] = useState<{ imageUrl: string; prompt: string; engine?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [proMode, setProMode] = useState(true); // Default to pro (ControlNet)
 
   const styles = [
     { id: 'japanese', label: '🇯🇵 日式和风', color: '#8B7355' },
@@ -367,8 +368,9 @@ function GenerateTab() {
     setResult(null);
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 90000);
-      const res = await fetch('/api/generate', {
+      const timeout = setTimeout(() => controller.abort(), 150000); // 150s for ControlNet
+      const apiUrl = proMode ? '/api/generate-pro' : '/api/generate';
+      const res = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image, style, room, customPrompt }),
@@ -380,7 +382,7 @@ function GenerateTab() {
         setError(data.error || '生成失败');
         return;
       }
-      setResult({ imageUrl: data.imageUrl, prompt: data.prompt });
+      setResult({ imageUrl: data.imageUrl, prompt: data.prompt, engine: data.engine });
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         setError('请求超时，请重试');
@@ -395,8 +397,38 @@ function GenerateTab() {
   return (
     <div className="bg-gray-800/50 rounded-xl border border-gray-700 p-6">
       <div className="mb-6">
-        <h3 className="text-lg font-semibold text-white mb-2">🎨 AI 效果图生成</h3>
-        <p className="text-sm text-gray-400">上传平面图 → AI识别房间 → 选房间+风格 → 生成效果图</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-2">🎨 AI 效果图生成</h3>
+            <p className="text-sm text-gray-400">上传平面图 → AI识别房间 → 选房间+风格 → 生成效果图</p>
+          </div>
+          {/* Pro Mode Toggle */}
+          <div className="flex items-center gap-3">
+            <button onClick={() => setProMode(false)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+                !proMode
+                  ? 'border-blue-500 bg-blue-500/20 text-white'
+                  : 'border-gray-700 bg-gray-800 text-gray-500 hover:border-gray-500'
+              }`}>
+              🎯 快速模式
+              <span className="block text-[9px] opacity-60">DALL-E 3</span>
+            </button>
+            <button onClick={() => setProMode(true)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+                proMode
+                  ? 'border-purple-500 bg-purple-500/20 text-white'
+                  : 'border-gray-700 bg-gray-800 text-gray-500 hover:border-gray-500'
+              }`}>
+              🏆 专业模式
+              <span className="block text-[9px] opacity-60">ControlNet</span>
+            </button>
+          </div>
+        </div>
+        {proMode && (
+          <div className="mt-2 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+            <p className="text-xs text-purple-300">🏆 专业模式：使用 ControlNet 技术，严格保留原图空间结构和房间布局，效果图与平面图高度一致</p>
+          </div>
+        )}
         {error && <p className="text-xs text-red-400 mt-1">❌ {error}</p>}
       </div>
 
@@ -485,8 +517,14 @@ function GenerateTab() {
 
           {/* Generate Button */}
           <button onClick={generate} disabled={!image || generating || detecting}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition">
-            {generating ? `✨ 正在生成${room || ''}效果图，约20-30秒...` : `✨ 生成${room || ''}效果图`}
+            className={`w-full py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition ${
+              proMode
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
+            }`}>
+            {generating
+              ? `✨ ${proMode ? 'ControlNet' : 'DALL-E'} 正在生成${room || ''}效果图，约${proMode ? '30-60' : '20-30'}秒...`
+              : `✨ ${proMode ? '🏆 专业' : '🎯 快速'}生成${room || ''}效果图`}
           </button>
         </div>
 
@@ -494,7 +532,7 @@ function GenerateTab() {
         <div className="flex items-center justify-center">
           {result ? (
             <div className="space-y-3 w-full">
-              <p className="text-sm font-medium text-green-400">✅ 效果图生成成功！</p>
+              <p className="text-sm font-medium text-green-400">✅ 效果图生成成功！{result.engine === 'replicate-controlnet' && <span className="text-purple-400 ml-2">🏆 ControlNet</span>}</p>
               <img src={result.imageUrl} alt="效果图" className="w-full rounded-xl border border-gray-600" />
               <div className="flex gap-2">
                 <a href={result.imageUrl} target="_blank" rel="noopener noreferrer"
