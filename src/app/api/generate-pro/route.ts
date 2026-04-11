@@ -5,6 +5,37 @@ export const maxDuration = 120; // ControlNet can take longer
 
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
 
+// Upload base64 image to Replicate's file upload endpoint and return a URL
+async function uploadImageToReplicate(base64Data: string): Promise<string> {
+  // Extract the raw base64 and mime type
+  const match = base64Data.match(/^data:(image\/\w+);base64,(.+)$/);
+  if (!match) throw new Error('Invalid base64 image format');
+  const mimeType = match[1];
+  const rawBase64 = match[2];
+  const buffer = Buffer.from(rawBase64, 'base64');
+
+  const ext = mimeType === 'image/png' ? 'png' : 'jpg';
+
+  // Use Replicate's file upload API
+  const uploadRes = await fetch('https://api.replicate.com/v1/files', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${REPLICATE_API_TOKEN}`,
+      'Content-Type': mimeType,
+      'Content-Disposition': `attachment; filename="upload.${ext}"`,
+    },
+    body: buffer,
+  });
+
+  if (!uploadRes.ok) {
+    const err = await uploadRes.text();
+    throw new Error(`Replicate file upload failed (${uploadRes.status}): ${err}`);
+  }
+
+  const uploadData = await uploadRes.json();
+  return uploadData.urls?.get || uploadData.url;
+}
+
 // Style prompts optimized for ControlNet interior design
 const stylePrompts: Record<string, string> = {
   japanese:
@@ -115,8 +146,17 @@ Start directly with the room description, no preamble.`,
       detailedPrompt += `. ${customPrompt}`;
     }
 
-    // Step 2: Send to Replicate ControlNet interior design model
-    // Using adirik/interior-design which preserves room structure via ControlNet
+    // Step 2: Upload image to Replicate (it doesn't accept base64 directly)
+    let imageUrl: string;
+    try {
+      imageUrl = await uploadImageToReplicate(image);
+    } catch (uploadErr: unknown) {
+      const msg = uploadErr instanceof Error ? uploadErr.message : 'Upload failed';
+      console.error('Image upload error:', msg);
+      return NextResponse.json({ error: `图片上传失败: ${msg}` }, { status: 502 });
+    }
+
+    // Step 3: Send to Replicate ControlNet interior design model
     const replicateResponse = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
@@ -126,7 +166,7 @@ Start directly with the room description, no preamble.`,
       body: JSON.stringify({
         version: '76604baddc85b1b4616e1c6475eca080da339c8875bd4996705440484a6ebd65',
         input: {
-          image,
+          image: imageUrl,
           prompt: detailedPrompt,
           negative_prompt:
             'lowres, watermark, banner, logo, contactinfo, text, deformed, blurry, blur, out of focus, out of frame, surreal, ugly, beginner, amateur, distorted, draft, cartoon, anime, illustration, painting, drawing, people, person, human, face, hands',
@@ -149,7 +189,7 @@ Start directly with the room description, no preamble.`,
 
     const prediction = await replicateResponse.json();
 
-    // Step 3: Poll for result
+    // Step 4: Poll for result
     const result = await waitForPrediction(prediction.id);
 
     if (result.error) {
